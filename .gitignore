@@ -1,1 +1,7 @@
 __pycache__
+
+datasets
+ckpts_path
+runs
+yolo
+*.pt
