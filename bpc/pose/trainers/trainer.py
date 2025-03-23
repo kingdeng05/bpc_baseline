@@ -43,6 +43,7 @@ def train_pose_estimation(
         start_epoch = ckpt["epoch"] + 1
         best_val_rot = ckpt["best_val_rot"]
 
+    vis_cnt = 0
     for epoch in range(start_epoch, epochs + 1):
         model.train()
         train_loss_sum = 0.0
@@ -50,7 +51,7 @@ def train_pose_estimation(
         train_steps = 0
 
         tbar = tqdm(train_loader, desc=f"Train Epoch {epoch}/{epochs}", ncols=120)
-        for imgs, lbls, metas in tbar:
+        for idx, (imgs, lbls, metas) in enumerate(tbar):
             sym_list = None
             imgs = imgs.to(device)
             batched_labels = batch_labels(lbls, device)
@@ -69,12 +70,15 @@ def train_pose_estimation(
                 "rot_loss": f"{metrics['rot_loss'].item():.3f}",
                 "deg":      f"{metrics['rot_deg_mean'].item():.2f}",
             })
+            
+            if idx % 15 == 0:
+                writer.add_scalar("train/rot_loss", metrics["rot_loss"].item(), vis_cnt)
+                writer.add_scalar("train/rot_deg_mean", metrics["rot_deg_mean"].item(), vis_cnt)
+                vis_cnt += 1
 
+        # average out the result
         train_loss_avg = train_loss_sum / train_steps
-        train_deg_avg  = train_deg_sum  / train_steps
-
-        writer.add_scalar("train/rot_loss", train_loss_avg, epoch)
-        writer.add_scalar("train/rot_deg_mean", train_deg_avg, epoch)
+        train_deg_avg = train_deg_avg / train_steps
 
         model.eval()
         val_loss_sum = 0.0
