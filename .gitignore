@@ -6,3 +6,4 @@ runs
 yolo
 ipd
 *.pt
+*.egg-info
