@@ -276,8 +276,7 @@ class SixDPoseLoss(nn.Module):
         self.w_rot = w_rot
 
     def forward(self, labels, preds, sym_list=None):
-        gt_euler = labels["euler"]
-        R_gt = rotmat_from_euler(gt_euler)
+        R_gt = rotmat_from_euler(labels["6d"])
         rep6d = preds[:, :6]
         R_pred = rotmat_from_6d(rep6d)
         angles = geodesic_distance_from_matrix(R_pred, R_gt)
@@ -354,3 +353,52 @@ class SymmetryAwarePoseLoss(nn.Module):
                 rot_deg_mean = (loss_tensor * 180.0 / math.pi).mean().item()
 
         return self.w_rot * loss_val, {"rot_loss": loss_val, "rot_deg_mean": rot_deg_mean}
+
+class SITELoss(nn.Module):
+    def __init__(self):
+        super(SITELoss, self).__init__()
+        self._loss_fn = nn.L1Loss()
+
+    def forward(self, labels, preds):
+        """
+        labels: [B, 3] ground truth site delta (δx, δy, δz)
+        labels: [B, 3] predicted SITE deltas (δx, δy, δz)
+        """
+        site = labels["site"]
+        loss = self._loss_fn(preds, site)
+        return loss
+
+class PoseLoss(nn.Module):
+    def __init__(self, criterion, alpha=1.):
+        super(PoseLoss, self).__init__()
+        self._rotation_loss = criterion
+        self._trans_loss = SITELoss()
+        self._alpha = alpha
+
+    def forward(self, labels, preds, sym_list=None):
+        """
+        Args:
+            labels: dict with keys 'rotation', 'site', etc.
+            preds: tuple of (pred_rot, pred_site)
+            sym_list: optional symmetry info for rotation loss
+
+        Returns:
+            total_loss, metrics_dict
+        """
+        pred_rot, pred_site = preds
+
+        rot_loss, rot_metrics = self._rotation_loss(labels, pred_rot, sym_list=sym_list)
+        site_loss = self._trans_loss(labels, pred_site)
+
+        total_loss = rot_loss + self._alpha * site_loss
+
+        # add more metrics on top of the rotation metrics
+        metrics = {
+            "site_loss": site_loss,
+            "total_loss": total_loss
+        }
+        metrics.update(rot_metrics)
+
+        return  total_loss, metrics 
+
+ 
