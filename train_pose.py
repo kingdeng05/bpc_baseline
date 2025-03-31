@@ -4,11 +4,13 @@ from torch.utils.data import DataLoader, ConcatDataset
 import os
 from bpc.utils.data_utils import BOPSingleObjDataset, bop_collate_fn
 from bpc.pose.models.simple_pose_net import SimplePoseNet
+from bpc.pose.models.full_pose_net import FullPoseNet 
 from bpc.pose.models.losses import (
     EulerAnglePoseLoss,
     QuaternionPoseLoss,
     SixDPoseLoss,
     SymmetryAwarePoseLoss,
+    PoseLoss,
     load_symmetry_from_json
 )
 from bpc.pose.trainers.trainer import train_pose_estimation
@@ -106,7 +108,8 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # Pass loss_type so that the network outputs the correct dimension.
-    model = SimplePoseNet(loss_type=args.loss_type, pretrained=not args.resume).to(device)
+    # model = SimplePoseNet(loss_type=args.loss_type, pretrained=not args.resume).to(device)
+    model = FullPoseNet(loss_type=args.loss_type, pretrained=not args.resume).to(device)
 
     checkpoint_path = os.path.join(checkpoint_dir, "last_checkpoint.pth")
     if args.resume and os.path.exists(checkpoint_path):
@@ -141,6 +144,8 @@ def main():
         criterion_wrapper = lambda labels, preds, **kwargs: criterion(labels, preds, obj_id, sym_flag=True)
     else:
         criterion_wrapper = criterion
+    # combining both rotation and translation
+    criterion_wrapper = PoseLoss(criterion, alpha=0.002)
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = StepLR(optimizer, step_size=step_size, gamma=0.5)
