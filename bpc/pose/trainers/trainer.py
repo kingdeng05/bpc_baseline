@@ -63,15 +63,19 @@ def train_pose_estimation(
             optimizer.step()
 
             train_steps += 1
-            train_loss_sum += metrics["rot_loss"].item()
+            train_loss_sum += metrics["total_loss"].item()
             train_deg_sum  += metrics["rot_deg_mean"].item()
 
             tbar.set_postfix({
+                "total_loss": f"{metrics['total_loss'].item():.3f}",
                 "rot_loss": f"{metrics['rot_loss'].item():.3f}",
+                "site_loss": f"{metrics['site_loss'].item():.3f}",
                 "deg":      f"{metrics['rot_deg_mean'].item():.2f}",
             })
             
             if idx % 15 == 0:
+                writer.add_scalar("train/total_loss", metrics["total_loss"].item(), vis_cnt)
+                writer.add_scalar("train/site_loss", metrics["site_loss"].item(), vis_cnt)
                 writer.add_scalar("train/rot_loss", metrics["rot_loss"].item(), vis_cnt)
                 writer.add_scalar("train/rot_deg_mean", metrics["rot_deg_mean"].item(), vis_cnt)
                 vis_cnt += 1
@@ -92,13 +96,13 @@ def train_pose_estimation(
                 batched_labels = batch_labels(lbls, device)
                 loss, metrics = criterion(batched_labels, model(imgs), sym_list=sym_list)
                 val_steps += 1
-                val_loss_sum += metrics["rot_loss"].item()
+                val_loss_sum += metrics["total_loss"].item()
                 val_deg_sum  += metrics["rot_deg_mean"].item()
 
         val_loss_avg = val_loss_sum / val_steps
         val_deg_avg  = val_deg_sum  / val_steps
 
-        writer.add_scalar("val/rot_loss", val_loss_avg, epoch)
+        writer.add_scalar("val/total_loss", val_loss_avg, epoch)
         writer.add_scalar("val/rot_deg_mean", val_deg_avg, epoch)
         scheduler.step()
         print(
