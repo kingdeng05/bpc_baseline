@@ -13,6 +13,9 @@ import torchvision.transforms.functional as TF
 import torchvision.transforms as T
 from scipy.spatial.transform import Rotation as R
 from bpc.inference.utils.camera_utils import load_camera_params
+
+from .site import convert_t_to_site
+
 # Make sure to set the OpenGL platform before importing pyrender.
 os.environ["PYOPENGL_PLATFORM"] = "egl"
 import pyrender
@@ -162,7 +165,7 @@ class BOPSingleObjDataset(Dataset):
                             "img_path": img_path,
                             "K": K,
                             "R": R_mat,
-                            "t": t,
+                            "t": t.flatten(),
                             "bbox_visib": [x, y, w_, h_]
                         })
                 scene_count += 1
@@ -224,6 +227,9 @@ class BOPSingleObjDataset(Dataset):
             raise RuntimeError("Empty crop => skip")
         letter_img, scale, dx, dy = letterbox_preserving_aspect_ratio(crop, target_size=self.target_size)
 
+        bbox_new = [x0, y0, new_w, new_h]
+        site = convert_t_to_site(t, K, bbox_new, self.target_size)
+
         # (Optional) You can compute the projected center if needed, but here we ignore it.
         # uv = compute_2d_center(K, R_mat, t)
         # if uv is None:
@@ -245,7 +251,8 @@ class BOPSingleObjDataset(Dataset):
         label_dict = {
             "euler": np.array(euler_angles, dtype=np.float32),  # (3,)
             "quat":  np.array(quat, dtype=np.float32),          # (4,)
-            "6d":    np.array(rep6d, dtype=np.float32)           # (6,)
+            "6d":    np.array(rep6d, dtype=np.float32),         # (6,)
+            "site":  np.array(site, dtype=np.float32)           # (3,)
         }
 
         letter_img_c = np.ascontiguousarray(letter_img, dtype=np.uint8)
@@ -264,6 +271,7 @@ class BOPSingleObjDataset(Dataset):
         # Convert labels to torch tensors.
         for key in label_dict:
             label_dict[key] = torch.from_numpy(label_dict[key])
+
         meta = {
             "scene_id": data["scene_id"],
             "cam_id": data["cam_id"],
