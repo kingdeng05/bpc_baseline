@@ -6,7 +6,15 @@ setup(
     name=package_name,
     version="1.0",
     packages=['bpc'],
-    install_requires=["scipy"],
+    install_requires=[
+        "scipy",
+        "torch",
+        "torchvision",
+        "opencv-python",
+        "pyrender",
+        "timm",
+        "tensorboard"
+    ],
     author="Agastya Karla",
     author_email="todo",
     license="Apache License 2.0",
