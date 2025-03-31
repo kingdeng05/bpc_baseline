@@ -82,7 +82,7 @@ def train_pose_estimation(
 
         # average out the result
         train_loss_avg = train_loss_sum / train_steps
-        train_deg_avg = train_deg_avg / train_steps
+        train_deg_avg = train_deg_sum / train_steps
 
         model.eval()
         val_loss_sum = 0.0
